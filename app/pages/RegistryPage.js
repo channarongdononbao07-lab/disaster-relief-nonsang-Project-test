@@ -56,7 +56,7 @@ export default function RegistryPage({ onNavigate, officerUser }) {
       // Query only required columns - skipping heavy signature_url and attachments blobs
       const { data, error } = await supabase
         .from('requests')
-        .select('id, request_number, full_name, disaster_type, incident_date, urgency_level, status, district, province, created_at, estimated_damage')
+        .select('id, request_number, full_name, id_card_number, phone, household_members, disaster_type, incident_date, urgency_level, estimated_damage, address, village, subdistrict, district, province, assistance_requested, officer_notes, status, created_at')
         .order('created_at', { ascending: false })
         .limit(200)
         .abortSignal(controller.signal);
