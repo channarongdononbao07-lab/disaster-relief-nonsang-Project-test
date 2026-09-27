@@ -64,23 +64,71 @@ npm run dev
 *เอกสารฉบับนี้สร้างขึ้นเพื่อใช้ในการทดสอบระบบภายในโครงการระบบคำร้องขอรับการช่วยเหลือสาธารณภัย*
 
 
-*ขั้นตอนถัดไปเมื่อพร้อมขึ้น Supabase + GitHub + Vercel*
-เมื่อคุณทดสอบบน Localhost พอใจแล้ว และต้องการอัปขึ้นออนไลน์ สามารถทำได้ง่ายๆ ตามขั้นตอนดังนี้:
+---
 
-สร้างฐานข้อมูล Supabase:
+## 🚀 คู่มือการอัปเดตโค้ดขึ้น GitHub & Vercel (Update & Deploy Guide)
 
-รัน SQL script จากไฟล์ 
+ระบบนี้เชื่อมต่อกับ **GitHub Repository** และผูก Auto-deploy ไว้กับ **Vercel** เรียบร้อยแล้ว ทุกครั้งที่ `git push` ขึ้น branch `main` ระบบ Vercel จะเริ่ม Build และอัปเดตเว็บไซต์ออนไลน์ให้อัตโนมัติทันที
 
-supabase/migration.sql
- ใน Supabase SQL Editor
-สร้าง Storage Bucket ชื่อ request-files (ตั้งค่าเป็น Public)
-เชื่อมต่อ Environment Variables:
+### 📌 ขั้นตอนการอัปเดตโค้ดตามปกติ (Standard Workflow)
 
-คัดลอก URL และ Anon Key จาก Supabase ไปใส่ใน .env.local หรือตั้งค่าใน Vercel:
-env
+เปิด Terminal / PowerShell ในโฟลเดอร์โปรเจกต์ `disaster-relief-app` แล้วรันตามลำดับ:
+
+```powershell
+# 1. ตรวจสอบไฟล์ที่มีการแก้ไข
+git status
+
+# 2. นำไฟล์ทั้งหมดที่แก้ไขเตรียม Commit
+git add -A
+
+# 3. บันทึกประวัติการเปลี่ยนแปลง (ใส่ข้อความอธิบายสิ่งที่แก้ไข)
+git commit -m "feat: อธิบายสิ่งที่คุณเพิ่มหรือแก้ไข"
+
+# 4. ส่งโค้ดขึ้น GitHub (Vercel จะเริ่ม Deploy อัตโนมัติทันที)
+git push origin main
+```
+
+> **⚠️ ข้อควรระวังสำหรับ Windows PowerShell:**  
+> ไม่ควรพิมพ์ `git add -A && git commit ...` ต่อกันด้วย `&&` ใน PowerShell เวอร์ชั่นเก่า เพราะจะเกิด error ให้กด Enter ทีละคำสั่ง หรือคั่นด้วยเครื่องหมาย `;` แทน
+
+---
+
+### 🌐 การติดตามผลบน Vercel
+
+1. เมื่อสั่ง `git push origin main` สำเร็จ
+2. เปิดเบราว์เซอร์ไปยัง [Vercel Dashboard](https://vercel.com/dashboard)
+3. เลือกโปรเจกต์ของคุณ จะเห็นสถานะ **Building** 🟡
+4. รอประมาณ 1 - 2 นาที เมื่อขึ้น **Ready** 🟢 เว็บไซต์เวอร์ชันออนไลน์จะอัปเดตเป็นโค้ดล่าสุดทันที
+
+---
+
+### 🗄️ กรณีมีการแก้ไขโครงสร้างฐานข้อมูล (Database Migration)
+
+หากมีการเพิ่มคอลัมน์ใหม่ (เช่น `gps_lat`, `gps_lng`) หรือแก้ไข Table ใน Supabase:
+1. เปิด [Supabase Dashboard](https://supabase.com/dashboard)
+2. เข้าโปรเจกต์ของคุณ -> เมนู **SQL Editor**
+3. คัดลอกคำสั่ง SQL จากไฟล์ [`supabase/migration.sql`](file:///f:/Project_wrbแจ้งเตือนพี่มาท/disaster-relief-app/supabase/migration.sql) ไปวางแล้วกด **Run**
+4. ตรวจสอบว่า Table มีคอลัมน์ใหม่เรียบร้อย
+
+---
+
+### 🛠️ คำสั่ง Git ที่ใช้บ่อยเพิ่มเติม
+
+| คำสั่ง | การใช้งาน |
+| :--- | :--- |
+| `git status` | ตรวจสอบว่ามีไฟล์ใดถูกแก้ไข หรือยังไม่ได้ commit |
+| `git diff` | ดูรายละเอียดโค้ดบรรทัดที่มีการเปลี่ยนแปลง |
+| `git log -n 5 --oneline` | ดูประวัติ commit ล่าสุด 5 รายการแบบย่อ |
+| `git pull origin main` | ดึงโค้ดล่าสุดจาก GitHub ลงมาที่เครื่อง |
+| `git restore <file>` | ยกเลิกการแก้ไขของไฟล์นั้นๆ กลับเป็นสภาพเดิม |
+
+---
+
+## ⚙️ การตั้งค่า Environment Variables (Vercel & Supabase)
+
+หากมีการสร้างโปรเจกต์ใหม่ หรือย้ายฐานข้อมูล ให้ตั้งค่าตัวแปรใน Vercel Settings -> **Environment Variables**:
+
+```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-Push ขึ้น GitHub และ Deploy Vercel:
-
-git push เข้า Repository บน GitHub
-Import โปรเจกต์ใน Vercel แล้วกด Deploy ได้ทันที
+```
