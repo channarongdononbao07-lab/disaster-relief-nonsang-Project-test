@@ -6,8 +6,8 @@ import { authenticateUser } from '../../lib/userStore';
 
 export default function LoginPage({ onLoginSuccess, onNavigate }) {
   const { showToast } = useToast();
-  const [username, setUsername] = useState('officer');
-  const [password, setPassword] = useState('1234');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
