@@ -72,8 +72,29 @@ CREATE POLICY "Allow public delete" ON requests
   FOR DELETE USING (true);
 
 -- Create a storage bucket for file attachments
--- Note: Run this in Supabase SQL editor or configure via dashboard
--- INSERT INTO storage.buckets (id, name, public) VALUES ('request-files', 'request-files', true);
+-- *** รัน SQL นี้ใน Supabase SQL Editor ***
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'request-files',
+  'request-files',
+  true,
+  15728640,  -- 15MB limit
+  ARRAY['image/jpeg','image/png','image/gif','image/webp','application/pdf',
+        'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+) ON CONFLICT (id) DO NOTHING;
+
+-- Storage policy: ทุกคนอ่านได้ (public bucket)
+CREATE POLICY "Public read storage" ON storage.objects
+  FOR SELECT USING (bucket_id = 'request-files');
+
+-- Storage policy: อนุญาต upload
+CREATE POLICY "Public upload storage" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'request-files');
+
+-- Storage policy: อนุญาต delete (สำหรับ admin)
+CREATE POLICY "Public delete storage" ON storage.objects
+  FOR DELETE USING (bucket_id = 'request-files');
 
 -- Create function to auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

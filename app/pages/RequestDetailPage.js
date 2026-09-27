@@ -356,21 +356,91 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
           {request.attachments && request.attachments.length > 0 && (
             <div className="card">
               <div className="detail-section">
-                <div className="detail-section-title">เอกสารแนบ</div>
-                {request.attachments.map((file, i) => (
-                  <div key={i} className="file-item" style={{ marginBottom: 8 }}>
-                    <span>📎 {file.name}</span>
-                    {file.url && file.url !== '#' ? (
-                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost">
-                        ดู
-                      </a>
-                    ) : (
-                      <span className="btn btn-sm btn-ghost" style={{ opacity: 0.4, cursor: 'not-allowed' }} title="ไม่มีลิงก์เอกสาร">
-                        ดู
-                      </span>
-                    )}
-                  </div>
-                ))}
+                <div className="detail-section-title">
+                  เอกสารแนบ
+                  <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--gray-500)', marginLeft: 8 }}>
+                    ({request.attachments.length} ไฟล์)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {request.attachments.map((file, i) => {
+                    const hasUrl = file.url && file.url !== '#';
+                    const isImage = hasUrl && /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(file.name);
+                    const fileSizeMB = file.size ? (file.size / 1024 / 1024).toFixed(1) : null;
+
+                    return (
+                      <div key={i} style={{
+                        border: '1.5px solid var(--gray-200)',
+                        borderRadius: 'var(--radius-md)',
+                        overflow: 'hidden',
+                        background: 'var(--gray-50)',
+                      }}>
+                        {/* Preview รูปภาพ */}
+                        {isImage && (
+                          <div style={{ background: '#fff', padding: 8, textAlign: 'center', borderBottom: '1px solid var(--gray-200)' }}>
+                            <img
+                              src={file.url}
+                              alt={file.name}
+                              style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 4 }}
+                              loading="lazy"
+                            />
+                          </div>
+                        )}
+                        {/* ชื่อไฟล์ + ปุ่มดำเนินการ */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', gap: 8, flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>
+                              {isImage ? '🖼️' : file.name.endsWith('.pdf') ? '📄' : '📎'}
+                            </span>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--gray-800)', wordBreak: 'break-word' }}>
+                                {file.name}
+                              </div>
+                              {fileSizeMB && (
+                                <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)' }}>
+                                  {fileSizeMB} MB
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            {hasUrl ? (
+                              <>
+                                {/* ปุ่มดู — เปิด tab ใหม่ */}
+                                <a
+                                  href={file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-sm btn-ghost"
+                                  style={{ padding: '6px 12px', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                  title="เปิดดูไฟล์"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                  ดู
+                                </a>
+                                {/* ปุ่มดาวน์โหลด */}
+                                <a
+                                  href={file.url}
+                                  download={file.name}
+                                  className="btn btn-sm btn-outline"
+                                  style={{ padding: '6px 12px', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                  title="ดาวน์โหลดไฟล์"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                  บันทึก
+                                </a>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--gray-400)', fontStyle: 'italic', padding: '6px 0' }}>
+                                ไม่มีลิงก์ไฟล์
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
