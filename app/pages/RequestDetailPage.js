@@ -17,6 +17,7 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
   const [rejectReason, setRejectReason] = useState('');
 
   const isSuperadmin = officerUser?.role === 'superadmin';
+  const isAdminOrSuperadmin = officerUser?.role === 'admin' || officerUser?.role === 'superadmin' || officerUser?.role === 'officer';
 
   const handleDeleteRequest = async () => {
     setActionLoading(true);
@@ -391,9 +392,10 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
       {/* Officer Action Buttons */}
       {(request.status === 'pending' || request.status === 'reviewing') && (
         <div className="action-bar-sticky">
-          {!officerUser && (
-            <div style={{ fontSize: '0.95rem', textAlign: 'center', color: 'var(--gray-500)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <span>🔐 ปุ่มสำหรับเจ้าหน้าที่ (กดเข้าสู่ระบบเพื่อใช้งาน)</span>
+          {!officerUser ? (
+            /* ผู้ที่ไม่ได้ login: แสดงเพียงข้อความแจ้ง ไม่มีปุ่มดำเนินการ */
+            <div style={{ fontSize: '0.95rem', textAlign: 'center', color: 'var(--gray-500)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <span>🔐 ปุ่มสำหรับเจ้าหน้าที่เท่านั้น (กรุณาเข้าสู่ระบบ)</span>
               <button
                 className="btn btn-sm btn-outline"
                 style={{ padding: '4px 12px', fontSize: '0.9rem' }}
@@ -403,54 +405,55 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
                 เข้าสู่ระบบ
               </button>
             </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 640, margin: '0 auto' }}>
-            {request.status === 'pending' && (
-              <button
-                className="btn btn-warning btn-block"
-                onClick={() => {
-                  if (officerUser) setReviewerName(officerUser.name);
-                  setShowApproveModal(true);
-                }}
-                disabled={actionLoading}
-                id="review-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                ตรวจสอบเอกสาร
-              </button>
-            )}
-            {request.status === 'reviewing' && (
-              <>
+          ) : isAdminOrSuperadmin ? (
+            /* admin / superadmin / officer: แสดงปุ่มดำเนินการ */
+            <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 640, margin: '0 auto' }}>
+              {request.status === 'pending' && (
                 <button
-                  className="btn btn-success"
-                  style={{ flex: 1 }}
+                  className="btn btn-warning btn-block"
                   onClick={() => {
-                    if (officerUser) setReviewerName(officerUser.name);
+                    setReviewerName(officerUser.name);
                     setShowApproveModal(true);
                   }}
                   disabled={actionLoading}
-                  id="approve-btn"
+                  id="review-btn"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
-                  อนุมัติคำร้อง
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  ตรวจสอบเอกสาร
                 </button>
-                <button
-                  className="btn btn-danger"
-                  style={{ flex: 1 }}
-                  onClick={() => {
-                    if (officerUser) setReviewerName(officerUser.name);
-                    setShowRejectModal(true);
-                  }}
-                  disabled={actionLoading}
-                  id="reject-btn"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
-                  ไม่อนุมัติ
-                </button>
-              </>
-            )}
-          </div>
+              )}
+              {request.status === 'reviewing' && (
+                <>
+                  <button
+                    className="btn btn-success"
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setReviewerName(officerUser.name);
+                      setShowApproveModal(true);
+                    }}
+                    disabled={actionLoading}
+                    id="approve-btn"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+                    อนุมัติคำร้อง
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setReviewerName(officerUser.name);
+                      setShowRejectModal(true);
+                    }}
+                    disabled={actionLoading}
+                    id="reject-btn"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                    ไม่อนุมัติ
+                  </button>
+                </>
+              )}
+            </div>
+          ) : null /* role อื่นที่ login แล้วแต่ไม่มีสิทธิ์: ไม่แสดงอะไร */ }
         </div>
       )}
 

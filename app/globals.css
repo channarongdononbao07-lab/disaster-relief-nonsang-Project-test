@@ -1545,3 +1545,25 @@ body {
     break-inside: avoid;
   }
 }
+
+/* ===== Mobile: ลดขนาดปุ่มใน action-bar-sticky ===== */
+@media (max-width: 480px) {
+  .action-bar-sticky .btn-lg {
+    padding: 13px 20px;
+    min-height: 50px;
+    font-size: 1rem;
+  }
+
+  .action-bar-sticky .btn-block,
+  .action-bar-sticky .btn-outline {
+    padding: 12px 18px;
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .action-bar-sticky .btn {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 1rem;
+  }
+}
