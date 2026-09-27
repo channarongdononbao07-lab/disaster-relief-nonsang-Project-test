@@ -139,20 +139,48 @@ export default function RegistryPage({ onNavigate, officerUser }) {
       return;
     }
 
-    const headers = ['เลขที่คำร้อง', 'ชื่อผู้ยื่น', 'ประเภทภัย', 'วันที่เกิดเหตุ', 'ระดับความเร่งด่วน', 'สถานะ', 'อำเภอ/เขต', 'จังหวัด', 'วันที่สร้าง'];
+    const headers = [
+      'เลขที่คำร้อง',
+      'ชื่อผู้ยื่น',
+      'เลขบัตรประชาชน',
+      'โทรศัพท์',
+      'จำนวนสมาชิกในครัวเรือน',
+      'ประเภทภัย',
+      'วันที่เกิดเหตุ',
+      'ระดับความเร่งด่วน',
+      'มูลค่าความเสียหาย (บาท)',
+      'ที่อยู่',
+      'หมู่บ้าน',
+      'ตำบล/แขวง',
+      'อำเภอ/เขต',
+      'จังหวัด',
+      'ความช่วยเหลือที่ร้องขอ',
+      'หมายเหตุ',
+      'สถานะ',
+      'วันที่สร้าง',
+    ];
     const rows = filteredRequests.map((r) => [
       r.request_number || '',
       r.full_name || '',
+      r.id_card_number || '',
+      r.phone || '',
+      r.household_members || '',
       r.disaster_type || '',
       r.incident_date || '',
       getUrgencyText(r.urgency_level),
-      r.status || '',
+      r.estimated_damage || 0,
+      r.address || '',
+      r.village || '',
+      r.subdistrict || '',
       r.district || '',
       r.province || '',
+      r.assistance_requested || '',
+      r.officer_notes || '',
+      r.status || '',
       new Date(r.created_at).toLocaleDateString('th-TH'),
     ]);
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.map(v => `"${v || ''}"`).join(','))].join('\n');
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -170,17 +198,46 @@ export default function RegistryPage({ onNavigate, officerUser }) {
       return;
     }
 
-    const headers = ['เลขที่คำร้อง', 'ชื่อผู้ยื่น', 'ประเภทภัย', 'วันที่เกิดเหตุ', 'ระดับความเร่งด่วน', 'สถานะ', 'อำเภอ/เขต', 'จังหวัด', 'วันที่สร้าง'];
+    const headers = [
+      'เลขที่คำร้อง',
+      'ชื่อผู้ยื่น',
+      'เลขบัตรประชาชน',
+      'โทรศัพท์',
+      'จำนวนสมาชิกในครัวเรือน',
+      'ประเภทภัย',
+      'วันที่เกิดเหตุ',
+      'ระดับความเร่งด่วน',
+      'มูลค่าความเสียหาย (บาท)',
+      'ที่อยู่',
+      'หมู่บ้าน',
+      'ตำบล/แขวง',
+      'อำเภอ/เขต',
+      'จังหวัด',
+      'ความช่วยเหลือที่ร้องขอ',
+      'หมายเหตุ',
+      'สถานะ',
+      'วันที่สร้าง',
+    ];
+    const escHtml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const rowsHtml = filteredRequests.map((r) => `
       <tr>
-        <td>${r.request_number || ''}</td>
-        <td>${r.full_name || ''}</td>
-        <td>${r.disaster_type || ''}</td>
-        <td>${r.incident_date || ''}</td>
-        <td>${getUrgencyText(r.urgency_level)}</td>
-        <td>${r.status || ''}</td>
-        <td>${r.district || ''}</td>
-        <td>${r.province || ''}</td>
+        <td>${escHtml(r.request_number)}</td>
+        <td>${escHtml(r.full_name)}</td>
+        <td>${escHtml(r.id_card_number)}</td>
+        <td>${escHtml(r.phone)}</td>
+        <td>${escHtml(r.household_members)}</td>
+        <td>${escHtml(r.disaster_type)}</td>
+        <td>${escHtml(r.incident_date)}</td>
+        <td>${escHtml(getUrgencyText(r.urgency_level))}</td>
+        <td x:num>${r.estimated_damage || 0}</td>
+        <td>${escHtml(r.address)}</td>
+        <td>${escHtml(r.village)}</td>
+        <td>${escHtml(r.subdistrict)}</td>
+        <td>${escHtml(r.district)}</td>
+        <td>${escHtml(r.province)}</td>
+        <td>${escHtml(r.assistance_requested)}</td>
+        <td>${escHtml(r.officer_notes)}</td>
+        <td>${escHtml(r.status)}</td>
         <td>${new Date(r.created_at).toLocaleDateString('th-TH')}</td>
       </tr>
     `).join('');
