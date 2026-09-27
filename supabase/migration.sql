@@ -67,6 +67,10 @@ CREATE POLICY "Allow public insert" ON requests
 CREATE POLICY "Allow public update" ON requests
   FOR UPDATE USING (true);
 
+-- Policy: Allow anonymous delete (for superadmin delete - in production, restrict this to authenticated officers)
+CREATE POLICY "Allow public delete" ON requests
+  FOR DELETE USING (true);
+
 -- Create a storage bucket for file attachments
 -- Note: Run this in Supabase SQL editor or configure via dashboard
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('request-files', 'request-files', true);

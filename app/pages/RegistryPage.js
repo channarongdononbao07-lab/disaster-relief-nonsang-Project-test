@@ -25,14 +25,16 @@ export default function RegistryPage({ onNavigate, officerUser }) {
     setIsDeleting(true);
     try {
       if (isSupabaseConfigured) {
-        await supabase.from('requests').delete().eq('id', deleteTarget.id);
+        // รอให้ Supabase ลบเสร็จก่อน — ไม่ fallback หากเกิด error
+        const { error } = await supabase.from('requests').delete().eq('id', deleteTarget.id);
+        if (error) throw error;
       }
+      // ลบจาก local cache หลัง Supabase สำเร็จ
       deleteDemoRequest(deleteTarget.id);
-      showToast('ลบคำร้องสำเร็จ', `เลขที่ ${deleteTarget.request_number} เรียบร้อยแล้ว`, 'success');
+      showToast('ลบคำร้องสำเร็จ', `เลขที่ ${deleteTarget.request_number} ถูกลบออกจากระบบแล้ว`, 'success');
       setDeleteTarget(null);
     } catch (e) {
-      deleteDemoRequest(deleteTarget.id);
-      showToast('ลบคำร้องสำเร็จ', 'ลบคำร้องเรียบร้อยแล้ว (Local Mode)', 'success');
+      showToast('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาดในการลบข้อมูล กรุณาลองใหม่', 'error');
       setDeleteTarget(null);
     } finally {
       setIsDeleting(false);

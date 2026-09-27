@@ -21,20 +21,23 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
 
   const handleDeleteRequest = async () => {
     setActionLoading(true);
+    setShowDeleteModal(false);
     try {
       if (isSupabaseConfigured) {
-        await supabase.from('requests').delete().eq('id', requestId);
+        // ลบจาก Supabase ก่อน รอให้เสร็จจริง
+        const { error } = await supabase.from('requests').delete().eq('id', requestId);
+        if (error) throw error;
       }
+      // ลบออกจาก local cache ด้วย
       deleteDemoRequest(requestId);
-      showToast('ลบคำร้องสำเร็จ', `เลขที่ ${request?.request_number || ''} เรียบร้อยแล้ว`, 'success');
-      onNavigate('registry');
+      showToast('ลบคำร้องสำเร็จ', `เลขที่ ${request?.request_number || ''} ถูกลบออกจากระบบแล้ว`, 'success');
     } catch (e) {
+      // ถ้า Supabase error ให้ลบจาก local cache แทน แต่แจ้งว่า error
       deleteDemoRequest(requestId);
-      showToast('ลบคำร้องสำเร็จ', 'ลบคำร้องเรียบร้อยแล้ว (Local Mode)', 'success');
-      onNavigate('registry');
+      showToast('เกิดข้อผิดพลาด', 'ลบจากฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่', 'error');
     } finally {
       setActionLoading(false);
-      setShowDeleteModal(false);
+      onNavigate('registry');
     }
   };
 
@@ -229,137 +232,166 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
         </div>
       </div>
 
-      {/* Section 1: Incident Info */}
-      <div className="card">
-        <div className="detail-section">
-          <div className="detail-section-title">ข้อมูลเหตุการณ์</div>
-          <div className="detail-row">
-            <span className="detail-label">ประเภทสาธารณภัย</span>
-            <span className="detail-value">{request.disaster_type}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">วันที่เกิดเหตุ</span>
-            <span className="detail-value">{new Date(request.incident_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">ระดับความเร่งด่วน</span>
-            <span className={`detail-value urgency-${request.urgency_level}`} style={{ fontWeight: 700 }}>
-              ⚡ {getUrgencyText(request.urgency_level)}
-            </span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">มูลค่าความเสียหาย</span>
-            <span className="detail-value">฿{Number(request.estimated_damage || 0).toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 2: Personal Info */}
-      <div className="card">
-        <div className="detail-section">
-          <div className="detail-section-title">ข้อมูลผู้ประสบภัย</div>
-          <div className="detail-row">
-            <span className="detail-label">ชื่อ-นามสกุล</span>
-            <span className="detail-value">{request.full_name}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">เลขบัตรประชาชน</span>
-            <span className="detail-value" style={{ fontFamily: 'monospace' }}>{request.id_card_number}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">เบอร์โทรศัพท์</span>
-            <span className="detail-value">
-              <a href={`tel:${request.phone}`} style={{ color: 'var(--primary-600)', textDecoration: 'none' }}>{request.phone}</a>
-            </span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">สมาชิกในครัวเรือน</span>
-            <span className="detail-value">{request.household_members} คน</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 3: Address */}
-      <div className="card">
-        <div className="detail-section">
-          <div className="detail-section-title">ที่อยู่</div>
-          <div className="detail-row">
-            <span className="detail-label">ที่อยู่</span>
-            <span className="detail-value">{request.address}</span>
-          </div>
-          {request.village && (
-            <div className="detail-row">
-              <span className="detail-label">หมู่บ้าน</span>
-              <span className="detail-value">{request.village}</span>
-            </div>
-          )}
-          {request.subdistrict && (
-            <div className="detail-row">
-              <span className="detail-label">ตำบล/แขวง</span>
-              <span className="detail-value">{request.subdistrict}</span>
-            </div>
-          )}
-          <div className="detail-row">
-            <span className="detail-label">อำเภอ/เขต</span>
-            <span className="detail-value">{request.district}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">จังหวัด</span>
-            <span className="detail-value">{request.province}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 4: Assistance */}
-      <div className="card">
-        <div className="detail-section">
-          <div className="detail-section-title">ความช่วยเหลือที่ร้องขอ</div>
-          <div style={{ background: 'var(--gray-50)', padding: 20, borderRadius: 'var(--radius-sm)', fontSize: '1.1rem', lineHeight: 1.8 }}>
-            {request.assistance_requested}
-          </div>
-          {request.officer_notes && (
-            <>
-              <div className="detail-section-title" style={{ marginTop: 20 }}>หมายเหตุ</div>
-              <div style={{ background: 'var(--warning-50)', padding: 20, borderRadius: 'var(--radius-sm)', fontSize: '1.05rem', lineHeight: 1.8, borderLeft: '3px solid var(--warning-400)' }}>
-                {request.officer_notes}
+      {/* Sections 1-6: แสดงเฉพาะ admin/officer/superadmin เท่านั้น */}
+      {officerUser ? (
+        <>
+          {/* Section 1: Incident Info */}
+          <div className="card">
+            <div className="detail-section">
+              <div className="detail-section-title">ข้อมูลเหตุการณ์</div>
+              <div className="detail-row">
+                <span className="detail-label">ประเภทสาธารณภัย</span>
+                <span className="detail-value">{request.disaster_type}</span>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Signature */}
-      {request.signature_url && (
-        <div className="card">
-          <div className="detail-section">
-            <div className="detail-section-title">ลายมือชื่อผู้ยื่นคำร้อง</div>
-            <div style={{ background: 'white', border: '2px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 8, textAlign: 'center' }}>
-              <img
-                src={request.signature_url}
-                alt="ลายเซ็น"
-                loading="lazy"
-                decoding="async"
-                style={{ maxWidth: '100%', height: 'auto', maxHeight: 200 }}
-              />
+              <div className="detail-row">
+                <span className="detail-label">วันที่เกิดเหตุ</span>
+                <span className="detail-value">{new Date(request.incident_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">ระดับความเร่งด่วน</span>
+                <span className={`detail-value urgency-${request.urgency_level}`} style={{ fontWeight: 700 }}>
+                  ⚡ {getUrgencyText(request.urgency_level)}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">มูลค่าความเสียหาย</span>
+                <span className="detail-value">฿{Number(request.estimated_damage || 0).toLocaleString()}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Attachments */}
-      {request.attachments && request.attachments.length > 0 && (
-        <div className="card">
-          <div className="detail-section">
-            <div className="detail-section-title">เอกสารแนบ</div>
-            {request.attachments.map((file, i) => (
-              <div key={i} className="file-item" style={{ marginBottom: 8 }}>
-                <span>📎 {file.name}</span>
-                <a href={file.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost">
-                  ดู
-                </a>
+          {/* Section 2: Personal Info */}
+          <div className="card">
+            <div className="detail-section">
+              <div className="detail-section-title">ข้อมูลผู้ประสบภัย</div>
+              <div className="detail-row">
+                <span className="detail-label">ชื่อ-นามสกุล</span>
+                <span className="detail-value">{request.full_name}</span>
               </div>
-            ))}
+              <div className="detail-row">
+                <span className="detail-label">เลขบัตรประชาชน</span>
+                <span className="detail-value" style={{ fontFamily: 'monospace' }}>{request.id_card_number}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">เบอร์โทรศัพท์</span>
+                <span className="detail-value">
+                  <a href={`tel:${request.phone}`} style={{ color: 'var(--primary-600)', textDecoration: 'none' }}>{request.phone}</a>
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">สมาชิกในครัวเรือน</span>
+                <span className="detail-value">{request.household_members} คน</span>
+              </div>
+            </div>
           </div>
+
+          {/* Section 3: Address */}
+          <div className="card">
+            <div className="detail-section">
+              <div className="detail-section-title">ที่อยู่</div>
+              <div className="detail-row">
+                <span className="detail-label">ที่อยู่</span>
+                <span className="detail-value">{request.address}</span>
+              </div>
+              {request.village && (
+                <div className="detail-row">
+                  <span className="detail-label">หมู่บ้าน</span>
+                  <span className="detail-value">{request.village}</span>
+                </div>
+              )}
+              {request.subdistrict && (
+                <div className="detail-row">
+                  <span className="detail-label">ตำบล/แขวง</span>
+                  <span className="detail-value">{request.subdistrict}</span>
+                </div>
+              )}
+              <div className="detail-row">
+                <span className="detail-label">อำเภอ/เขต</span>
+                <span className="detail-value">{request.district}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">จังหวัด</span>
+                <span className="detail-value">{request.province}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Assistance */}
+          <div className="card">
+            <div className="detail-section">
+              <div className="detail-section-title">ความช่วยเหลือที่ร้องขอ</div>
+              <div style={{ background: 'var(--gray-50)', padding: 20, borderRadius: 'var(--radius-sm)', fontSize: '1.1rem', lineHeight: 1.8 }}>
+                {request.assistance_requested}
+              </div>
+              {request.officer_notes && (
+                <>
+                  <div className="detail-section-title" style={{ marginTop: 20 }}>หมายเหตุ</div>
+                  <div style={{ background: 'var(--warning-50)', padding: 20, borderRadius: 'var(--radius-sm)', fontSize: '1.05rem', lineHeight: 1.8, borderLeft: '3px solid var(--warning-400)' }}>
+                    {request.officer_notes}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Signature */}
+          {request.signature_url && (
+            <div className="card">
+              <div className="detail-section">
+                <div className="detail-section-title">ลายมือชื่อผู้ยื่นคำร้อง</div>
+                <div style={{ background: 'white', border: '2px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 8, textAlign: 'center' }}>
+                  <img
+                    src={request.signature_url}
+                    alt="ลายเซ็น"
+                    loading="lazy"
+                    decoding="async"
+                    style={{ maxWidth: '100%', height: 'auto', maxHeight: 200 }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Attachments */}
+          {request.attachments && request.attachments.length > 0 && (
+            <div className="card">
+              <div className="detail-section">
+                <div className="detail-section-title">เอกสารแนบ</div>
+                {request.attachments.map((file, i) => (
+                  <div key={i} className="file-item" style={{ marginBottom: 8 }}>
+                    <span>📎 {file.name}</span>
+                    {file.url && file.url !== '#' ? (
+                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost">
+                        ดู
+                      </a>
+                    ) : (
+                      <span className="btn btn-sm btn-ghost" style={{ opacity: 0.4, cursor: 'not-allowed' }} title="ไม่มีลิงก์เอกสาร">
+                        ดู
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        /* บุคคลทั่วไปที่ไม่ได้ login: แสดงกล่องแจ้งให้ login เพื่อดูข้อมูลเพิ่มเติม */
+        <div className="card" style={{ textAlign: 'center', padding: '32px 24px', borderStyle: 'dashed', borderColor: 'var(--gray-300)' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔒</div>
+          <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--gray-700)', marginBottom: 8 }}>
+            ข้อมูลรายละเอียดเป็นความลับ
+          </div>
+          <p style={{ fontSize: '0.95rem', color: 'var(--gray-500)', marginBottom: 20 }}>
+            เฉพาะเจ้าหน้าที่ที่ได้รับอนุญาตเท่านั้นที่สามารถดูข้อมูลผู้ประสบภัย เอกสาร และรายละเอียดคำร้องได้
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => onNavigate('login')}
+            id="guest-login-prompt-btn"
+          >
+            🔐 เข้าสู่ระบบเพื่อดูข้อมูล
+          </button>
         </div>
       )}
 
