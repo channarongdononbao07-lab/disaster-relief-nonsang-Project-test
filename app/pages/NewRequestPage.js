@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import SignaturePad from '../../components/SignaturePad';
 import { useToast } from '../../components/Toast';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -42,6 +42,8 @@ const INITIAL_FORM = {
   subdistrict: '',
   district: '',
   province: '',
+  gps_lat: null,
+  gps_lng: null,
   assistance_requested: '',
   officer_notes: '',
 };
@@ -56,6 +58,9 @@ export default function NewRequestPage({ onNavigate }) {
   const [submitted, setSubmitted] = useState(false);
   const [submittedNumber, setSubmittedNumber] = useState('');
   const fileInputRef = useRef(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState('');
+  const [mapKey, setMapKey] = useState(0); // force re-render map iframe
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -146,6 +151,8 @@ export default function NewRequestPage({ onNavigate }) {
       ...form,
       estimated_damage: Number(form.estimated_damage) || 0,
       household_members: Number(form.household_members) || 1,
+      gps_lat: form.gps_lat ? Number(form.gps_lat) : null,
+      gps_lng: form.gps_lng ? Number(form.gps_lng) : null,
       signature_url: signature,
       attachments: files.map(f => ({ name: f.name, url: '#', size: f.size })),
       status: 'pending',
@@ -473,6 +480,200 @@ export default function NewRequestPage({ onNavigate }) {
             {SUBDISTRICTS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+      </div>
+
+      {/* Section 2.5: GPS Location Pin */}
+      <div className="card" style={{ animationDelay: '0.25s' }}>
+        <div className="card-title">
+          <span className="section-number">📍</span>
+          ปักหมุด GPS ตำแหน่งบ้าน
+        </div>
+
+        <div style={{
+          background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+          border: '1.5px solid #93c5fd',
+          borderRadius: 'var(--radius-md)',
+          padding: '14px 16px',
+          marginBottom: 16,
+          display: 'flex',
+          gap: 10,
+          alignItems: 'flex-start',
+        }}>
+          <span style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 1 }}>🌊</span>
+          <div>
+            <div style={{ fontWeight: 700, color: '#1d4ed8', fontSize: '0.95rem', marginBottom: 3 }}>
+              ช่วยเจ้าหน้าที่เข้าถึงบ้านของคุณได้ง่ายขึ้น
+            </div>
+            <div style={{ fontSize: '0.88rem', color: '#2563eb', lineHeight: 1.6 }}>
+              กดปุ่มด้านล่างเพื่อให้ระบบระบุพิกัดบ้านของคุณโดยอัตโนมัติ หรือกรอกพิกัดด้วยตนเอง
+              เพื่อให้เจ้าหน้าที่ช่วยเหลือเดินทางมาถึงได้อย่างถูกต้องและรวดเร็ว
+            </div>
+          </div>
+        </div>
+
+        {/* ปุ่มขอตำแหน่ง GPS */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            id="get-gps-btn"
+            className="btn btn-primary"
+            style={{ flex: 1, minWidth: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '1rem' }}
+            disabled={gpsLoading}
+            onClick={() => {
+              setGpsError('');
+              setGpsLoading(true);
+              if (!navigator.geolocation) {
+                setGpsError('เบราว์เซอร์นี้ไม่รองรับ GPS กรุณากรอกพิกัดด้วยตนเอง');
+                setGpsLoading(false);
+                return;
+              }
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  const lat = pos.coords.latitude.toFixed(6);
+                  const lng = pos.coords.longitude.toFixed(6);
+                  setForm(prev => ({ ...prev, gps_lat: lat, gps_lng: lng }));
+                  setMapKey(k => k + 1);
+                  setGpsLoading(false);
+                  showToast('ระบุตำแหน่งสำเร็จ', `พิกัด: ${lat}, ${lng}`, 'success');
+                },
+                (err) => {
+                  let msg = 'ไม่สามารถระบุตำแหน่งได้';
+                  if (err.code === 1) msg = 'ผู้ใช้ปฏิเสธการเข้าถึง GPS กรุณากรอกพิกัดด้วยตนเอง';
+                  else if (err.code === 2) msg = 'ไม่พบสัญญาณ GPS กรุณาเปิด Location หรือกรอกพิกัดด้วยตนเอง';
+                  else if (err.code === 3) msg = 'หมดเวลาระบุตำแหน่ง กรุณาลองใหม่';
+                  setGpsError(msg);
+                  setGpsLoading(false);
+                },
+                { timeout: 12000, maximumAge: 30000, enableHighAccuracy: true }
+              );
+            }}
+          >
+            {gpsLoading ? (
+              <><span className="spinner" style={{ borderTopColor: 'white', width: 16, height: 16 }}></span> กำลังระบุตำแหน่ง...</>
+            ) : (
+              <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/><path d="M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg> 📡 ระบุตำแหน่ง GPS อัตโนมัติ</>
+            )}
+          </button>
+          {(form.gps_lat && form.gps_lng) && (
+            <button
+              type="button"
+              id="clear-gps-btn"
+              className="btn btn-outline"
+              style={{ padding: '10px 16px', color: 'var(--danger-600)', borderColor: 'var(--danger-300)' }}
+              onClick={() => {
+                setForm(prev => ({ ...prev, gps_lat: null, gps_lng: null }));
+                setGpsError('');
+                setMapKey(k => k + 1);
+              }}
+            >
+              🗑️ ล้าง
+            </button>
+          )}
+        </div>
+
+        {gpsError && (
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 'var(--radius-sm)',
+            padding: '10px 14px', color: '#dc2626', fontSize: '0.9rem', marginBottom: 16,
+            display: 'flex', gap: 8, alignItems: 'center',
+          }}>
+            <span>⚠️</span> {gpsError}
+          </div>
+        )}
+
+        {/* กรอก Latitude / Longitude ด้วยตนเอง */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="gps_lat">Latitude (ละติจูด)</label>
+            <input
+              type="number"
+              step="0.000001"
+              className="form-input"
+              id="gps_lat"
+              value={form.gps_lat || ''}
+              onChange={(e) => {
+                setForm(prev => ({ ...prev, gps_lat: e.target.value }));
+                setMapKey(k => k + 1);
+              }}
+              placeholder="เช่น 13.756331"
+              inputMode="decimal"
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="gps_lng">Longitude (ลองจิจูด)</label>
+            <input
+              type="number"
+              step="0.000001"
+              className="form-input"
+              id="gps_lng"
+              value={form.gps_lng || ''}
+              onChange={(e) => {
+                setForm(prev => ({ ...prev, gps_lng: e.target.value }));
+                setMapKey(k => k + 1);
+              }}
+              placeholder="เช่น 100.501762"
+              inputMode="decimal"
+            />
+          </div>
+        </div>
+
+        {/* แสดงแผนที่ preview */}
+        {form.gps_lat && form.gps_lng && Number(form.gps_lat) !== 0 && Number(form.gps_lng) !== 0 && (
+          <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '2px solid #3b82f6', boxShadow: '0 4px 16px rgba(59,130,246,0.2)' }}>
+            {/* Header แผนที่ */}
+            <div style={{
+              background: 'linear-gradient(90deg, #1d4ed8, #2563eb)',
+              padding: '10px 14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 8,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.1rem' }}>📍</span>
+                <span style={{ fontWeight: 700, color: 'white', fontSize: '0.95rem' }}>ตำแหน่งที่ปักหมุด</span>
+              </div>
+              <a
+                href={`https://www.google.com/maps?q=${form.gps_lat},${form.gps_lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'white', fontSize: '0.85rem', opacity: 0.9, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                เปิด Google Maps
+              </a>
+            </div>
+            {/* Coordinate display */}
+            <div style={{ background: '#1e3a5f', padding: '8px 14px', display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <span style={{ color: '#93c5fd', fontSize: '0.85rem', fontFamily: 'monospace' }}>🔵 Lat: {Number(form.gps_lat).toFixed(6)}</span>
+              <span style={{ color: '#86efac', fontSize: '0.85rem', fontFamily: 'monospace' }}>🟢 Lng: {Number(form.gps_lng).toFixed(6)}</span>
+            </div>
+            {/* Map iframe */}
+            <iframe
+              key={mapKey}
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(form.gps_lng)-0.003},${Number(form.gps_lat)-0.003},${Number(form.gps_lng)+0.003},${Number(form.gps_lat)+0.003}&layer=mapnik&marker=${form.gps_lat},${form.gps_lng}`}
+              width="100%"
+              height="280"
+              style={{ display: 'block', border: 'none' }}
+              title="แผนที่ตำแหน่งบ้าน"
+              loading="lazy"
+            />
+          </div>
+        )}
+
+        {/* ยังไม่ปักหมุด */}
+        {(!form.gps_lat || !form.gps_lng) && (
+          <div style={{
+            border: '2px dashed #93c5fd',
+            borderRadius: 'var(--radius-md)',
+            padding: '28px 20px',
+            textAlign: 'center',
+            color: '#60a5fa',
+            background: '#f0f9ff',
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>📍</div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem', color: '#2563eb', marginBottom: 4 }}>ยังไม่ได้ปักหมุดตำแหน่ง</div>
+            <div style={{ fontSize: '0.85rem', color: '#60a5fa' }}>กดปุ่มด้านบนหรือกรอกพิกัดเพื่อระบุตำแหน่งบ้าน (ไม่บังคับ แต่แนะนำให้ปักหมุดเพื่อให้เจ้าหน้าที่เข้าถึงได้รวดเร็ว)</div>
+          </div>
+        )}
       </div>
 
       {/* Section 3: Assistance Needed */}

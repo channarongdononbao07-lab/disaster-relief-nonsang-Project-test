@@ -316,6 +316,122 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
             </div>
           </div>
 
+          {/* Section 3.5: GPS Map */}
+          {(request.gps_lat && request.gps_lng) ? (
+            <div className="card" style={{ borderColor: '#3b82f6', background: 'linear-gradient(135deg, #eff6ff, #ffffff)' }}>
+              <div className="detail-section">
+                <div className="detail-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#1d4ed8' }}>
+                  <span>📍</span> พิกัด GPS ตำแหน่งบ้าน
+                  <span style={{
+                    background: '#22c55e', color: 'white',
+                    fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px',
+                    borderRadius: 999, letterSpacing: '0.5px'
+                  }}>✅ ปักหมุดแล้ว</span>
+                </div>
+                {/* Coordinates */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14,
+                }}>
+                  <div style={{
+                    background: '#1e3a5f', borderRadius: 'var(--radius-sm)',
+                    padding: '10px 14px', textAlign: 'center',
+                  }}>
+                    <div style={{ color: '#93c5fd', fontSize: '0.75rem', marginBottom: 4 }}>🔵 Latitude (ละติจูด)</div>
+                    <div style={{ color: 'white', fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem' }}>
+                      {Number(request.gps_lat).toFixed(6)}
+                    </div>
+                  </div>
+                  <div style={{
+                    background: '#1e3a5f', borderRadius: 'var(--radius-sm)',
+                    padding: '10px 14px', textAlign: 'center',
+                  }}>
+                    <div style={{ color: '#86efac', fontSize: '0.75rem', marginBottom: 4 }}>🟢 Longitude (ลองจิจูด)</div>
+                    <div style={{ color: 'white', fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem' }}>
+                      {Number(request.gps_lng).toFixed(6)}
+                    </div>
+                  </div>
+                </div>
+                {/* Navigation Buttons */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${request.gps_lat},${request.gps_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="navigate-google-maps-btn"
+                    style={{
+                      flex: 1, minWidth: 140,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      background: 'linear-gradient(135deg, #ea4335, #c0392b)',
+                      color: 'white', textDecoration: 'none',
+                      padding: '12px 16px', borderRadius: 'var(--radius-md)',
+                      fontWeight: 700, fontSize: '0.95rem',
+                      boxShadow: '0 4px 12px rgba(234,67,53,0.35)',
+                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                    }}
+                    onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+                    </svg>
+                    นำทาง Google Maps
+                  </a>
+                  <a
+                    href={`https://maps.apple.com/?daddr=${request.gps_lat},${request.gps_lng}&dirflg=d`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id="navigate-apple-maps-btn"
+                    style={{
+                      flex: 1, minWidth: 140,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
+                      color: 'white', textDecoration: 'none',
+                      padding: '12px 16px', borderRadius: 'var(--radius-md)',
+                      fontWeight: 700, fontSize: '0.95rem',
+                      boxShadow: '0 4px 12px rgba(29,78,216,0.35)',
+                      transition: 'transform 0.15s ease',
+                    }}
+                    onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseOut={e => e.currentTarget.style.transform = 'none'}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
+                    </svg>
+                    นำทาง Apple Maps
+                  </a>
+                </div>
+                {/* Map iframe */}
+                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '2px solid #3b82f6' }}>
+                  <iframe
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(request.gps_lng)-0.004},${Number(request.gps_lat)-0.004},${Number(request.gps_lng)+0.004},${Number(request.gps_lat)+0.004}&layer=mapnik&marker=${request.gps_lat},${request.gps_lng}`}
+                    width="100%"
+                    height="300"
+                    style={{ display: 'block', border: 'none' }}
+                    title="แผนที่ตำแหน่งบ้านผู้ประสบภัย"
+                    loading="lazy"
+                  />
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--gray-400)', textAlign: 'center', marginTop: 8 }}>
+                  แผนที่ OpenStreetMap • กดปุ่มนำทางด้านบนเพื่อเปิดเส้นทางครบถ้วนตรงหน้าบ้าน
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="card" style={{ borderColor: 'var(--gray-200)', background: 'var(--gray-50)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: '50%',
+                  background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.4rem', flexShrink: 0,
+                }}>📍</div>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--gray-700)', fontSize: '0.95rem' }}>ไม่มีข้อมูลพิกัด GPS</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--gray-400)' }}>ผู้ประสบภัยไม่ได้ปักหมุดตำแหน่งไว้ กรุณาใช้ข้อมูลที่อยู่เป็นแนวทางไปแทน</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Section 4: Assistance */}
           <div className="card">
             <div className="detail-section">

@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS requests (
   district TEXT NOT NULL,
   province TEXT NOT NULL,
   
+  -- GPS Coordinates (optional - for rescue navigation)
+  gps_lat DOUBLE PRECISION,
+  gps_lng DOUBLE PRECISION,
+  
   -- Section 3: Assistance
   assistance_requested TEXT NOT NULL,
   officer_notes TEXT,
@@ -113,9 +117,21 @@ CREATE TRIGGER update_requests_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================
+-- 🗺️ GPS Migration: เพิ่มคอลัมน์พิกัด GPS (รันเฉพาะถ้า Table มีอยู่แล้ว)
+-- =====================================================
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS gps_lat DOUBLE PRECISION;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS gps_lng DOUBLE PRECISION;
+
+COMMENT ON COLUMN requests.gps_lat IS 'Latitude พิกัด GPS ของบ้านผู้ประสบภัย (ไม่บังคับ)';
+COMMENT ON COLUMN requests.gps_lng IS 'Longitude พิกัด GPS ของบ้านผู้ประสบภัย (ไม่บังคับ)';
+
+-- Index สำหรับ query ตามพิกัด GPS (ถ้าต้องการค้นหาในรัศมี)
+CREATE INDEX IF NOT EXISTS idx_requests_gps ON requests(gps_lat, gps_lng) WHERE gps_lat IS NOT NULL;
+
+-- =====================================================
 -- Sample data for testing (optional - remove in production)
 -- =====================================================
-INSERT INTO requests (request_number, disaster_type, incident_date, urgency_level, estimated_damage, full_name, id_card_number, phone, household_members, address, village, subdistrict, district, province, assistance_requested, officer_notes, status, created_at) VALUES
-('REQ-20260927-0001', 'อุทกภัย', '2026-09-25', 'urgent', 150000, 'สมชาย ใจดี', '1234567890123', '081-234-5678', 4, '123/45 ม.6', 'บ้านสวน', 'ท่าศาลา', 'เมืองนครศรีธรรมราช', 'นครศรีธรรมราช', 'ถุงยังชีพ น้ำดื่ม วัสดุซ่อมแซมบ้าน', 'บ้านได้รับความเสียหายจากน้ำท่วมสูง 1.5 เมตร', 'pending', NOW() - INTERVAL '2 days'),
-('REQ-20260927-0002', 'วาตภัย', '2026-09-24', 'high', 80000, 'สมหญิง รักไทย', '9876543210987', '089-876-5432', 3, '78/9 ม.2', 'บ้านทุ่ง', 'ปากพูน', 'เมืองนครศรีธรรมราช', 'นครศรีธรรมราช', 'วัสดุมุงหลังคา แผ่นสังกะสี', NULL, 'reviewing', NOW() - INTERVAL '1 day'),
-('REQ-20260927-0003', 'อัคคีภัย', '2026-09-23', 'urgent', 500000, 'ประยุทธ์ มั่นคง', '1122334455667', '062-345-6789', 5, '456 ซ.3', NULL, 'คลัง', 'เมืองนครศรีธรรมราช', 'นครศรีธรรมราช', 'เงินช่วยเหลือ ที่พักชั่วคราว เครื่องนุ่งห่ม', 'ไฟไหม้บ้านทั้งหลัง ต้องการความช่วยเหลือเร่งด่วน', 'approved', NOW() - INTERVAL '5 days');
+INSERT INTO requests (request_number, disaster_type, incident_date, urgency_level, estimated_damage, full_name, id_card_number, phone, household_members, address, village, subdistrict, district, province, gps_lat, gps_lng, assistance_requested, officer_notes, status, created_at) VALUES
+('REQ-20260927-0001', 'อุทกภัย', '2026-09-25', 'urgent', 150000, 'สมชาย ใจดี', '1234567890123', '081-234-5678', 4, '123/45 ม.6', 'บ้านสวน', 'ท่าศาลา', 'เมืองนครศรีธรรมราช', 'นครศรีธรรมราช', 8.4304, 99.9634, 'ถุงยังชีพ น้ำดื่ม วัสดุซ่อมแซมบ้าน', 'บ้านได้รับความเสียหายจากน้ำท่วมสูง 1.5 เมตร', 'pending', NOW() - INTERVAL '2 days'),
+('REQ-20260927-0002', 'วาตภัย', '2026-09-24', 'high', 80000, 'สมหญิง รักไทย', '9876543210987', '089-876-5432', 3, '78/9 ม.2', 'บ้านทุ่ง', 'ปากพูน', 'เมืองนครศรีธรรมราช', 'นครศรีธรรมราช', 8.4250, 99.9580, 'วัสดุมุงหลังคา แผ่นสังกะสี', NULL, 'reviewing', NOW() - INTERVAL '1 day'),
+('REQ-20260927-0003', 'อัคคีภัย', '2026-09-23', 'urgent', 500000, 'ประยุทธ์ มั่นคง', '1122334455667', '062-345-6789', 5, '456 ซ.3', NULL, 'คลัง', 'เมืองนครศรีธรรมราช', 'นครศรีธรรมราช', NULL, NULL, 'เงินช่วยเหลือ ที่พักชั่วคราว เครื่องนุ่งห่ม', 'ไฟไหม้บ้านทั้งหลัง ต้องการความช่วยเหลือเร่งด่วน', 'approved', NOW() - INTERVAL '5 days');
