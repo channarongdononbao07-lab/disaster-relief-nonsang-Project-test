@@ -93,21 +93,9 @@
 }
 
 html {
-  font-size: 20px;
+  font-size: 16px;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 22px;
-  }
-}
-
-@media (min-width: 1024px) {
-  html {
-    font-size: 24px;
-  }
 }
 
 body {
