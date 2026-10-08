@@ -11,6 +11,11 @@ export default function AppHeader({ currentPage = 'home', onNavigate, officerUse
     { id: 'registry', label: 'ทะเบียนคำร้อง', icon: '📋' },
   ];
 
+  // รายงานสถิติ: เฉพาะเจ้าหน้าที่ที่ login แล้ว
+  if (officerUser) {
+    navItems.push({ id: 'statistics', label: 'รายงานสถิติ', icon: '📊' });
+  }
+
   if (officerUser?.role === 'superadmin') {
     navItems.push({ id: 'admin', label: 'จัดการเจ้าหน้าที่ (Superadmin)', icon: '👑' });
   }

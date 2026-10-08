@@ -4,7 +4,7 @@ import WarningTowerLogo from '../../components/WarningTowerLogo';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { getDemoRequests, calculateStats, subscribeDemoRequests, INITIAL_DEMO_REQUESTS } from '../../lib/demoStore';
 
-export default function HomePage({ onNavigate }) {
+export default function HomePage({ onNavigate, officerUser }) {
   // Initialize with static default to guarantee zero SSR hydration mismatch
   const [stats, setStats] = useState(() => calculateStats(INITIAL_DEMO_REQUESTS));
   const [recentRequests, setRecentRequests] = useState(() => INITIAL_DEMO_REQUESTS.slice(0, 5));
@@ -150,6 +150,16 @@ export default function HomePage({ onNavigate }) {
           </svg>
           ตรวจสอบสถานะคำร้อง
         </button>
+        {officerUser && (
+          <button
+            className="btn btn-outline btn-block btn-lg"
+            onClick={() => onNavigate('statistics')}
+            id="view-statistics-btn"
+            style={{ fontSize: '1.15rem', padding: '16px 24px', marginTop: 14 }}
+          >
+            📊 รายงานสถิติการเกิดเหตุ
+          </button>
+        )}
       </div>
 
       {/* Recent Requests */}
@@ -197,7 +207,7 @@ export default function HomePage({ onNavigate }) {
       <div style={{ textAlign: 'center', padding: '24px 16px 40px', color: 'var(--gray-400)', fontSize: '1rem' }}>
         <WarningTowerLogo size={28} />
         <p style={{ marginTop: 8 }}>ระบบคำร้องขอรับการช่วยเหลือสาธารณภัย</p>
-        <p>Disaster Relief Request System v1.0</p>
+        <p>Disaster Relief Request System v1.1</p>
       </div>
     </>
   );

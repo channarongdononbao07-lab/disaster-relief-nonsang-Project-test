@@ -44,6 +44,10 @@ const AdminPage = dynamic(() => import('./pages/AdminPage'), {
   loading: () => <PageLoadingSkeleton />,
 });
 
+const StatisticsPage = dynamic(() => import('./pages/StatisticsPage'), {
+  loading: () => <PageLoadingSkeleton />,
+});
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedRequestId, setSelectedRequestId] = useState(null);
@@ -118,6 +122,12 @@ export default function App() {
         return <RequestDetailPage requestId={selectedRequestId} onNavigate={handleNavigate} officerUser={officerUser} />;
       case 'login':
         return <LoginPage onLoginSuccess={handleLoginSuccess} onNavigate={handleNavigate} />;
+      case 'statistics':
+        // เฉพาะเจ้าหน้าที่ที่ login แล้วเท่านั้น
+        if (!officerUser) {
+          return <LoginPage onLoginSuccess={handleLoginSuccess} onNavigate={handleNavigate} />;
+        }
+        return <StatisticsPage onNavigate={handleNavigate} officerUser={officerUser} />;
       case 'admin':
         return <AdminPage officerUser={officerUser} onNavigate={handleNavigate} />;
       default:

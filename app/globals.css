@@ -1567,3 +1567,219 @@ body {
     font-size: 1rem;
   }
 }
+
+/* =====================================================
+   📊 Statistics Page - Frequency Levels (เหลือง/ส้ม/แดง)
+   ===================================================== */
+:root {
+  --freq-yellow: #facc15;
+  --freq-yellow-bg: #fef9c3;
+  --freq-yellow-text: #854d0e;
+  --freq-orange: #f97316;
+  --freq-orange-bg: #ffedd5;
+  --freq-orange-text: #9a3412;
+  --freq-red: #dc2626;
+  --freq-red-bg: #fee2e2;
+  --freq-red-text: #991b1b;
+}
+
+.stat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.stat-toolbar-label {
+  font-weight: 600;
+  color: var(--gray-700);
+}
+.stat-toolbar .form-select {
+  flex: 1;
+  min-width: 140px;
+}
+
+.freq-legend {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+.freq-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+.freq-legend-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.freq-legend-item.active { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.freq-legend-item.freq-yellow.active { border-color: var(--freq-yellow); }
+.freq-legend-item.freq-orange.active { border-color: var(--freq-orange); }
+.freq-legend-item.freq-red.active { border-color: var(--freq-red); }
+.freq-legend-text { display: flex; flex-direction: column; line-height: 1.2; flex: 1; min-width: 0; }
+.freq-legend-text small { font-size: 0.72rem; opacity: 0.85; }
+.freq-legend-count { font-size: 1.3rem; font-weight: 800; }
+.freq-dot {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+  background: currentColor;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
+}
+.freq-legend-item.freq-yellow .freq-dot { background: var(--freq-yellow); }
+.freq-legend-item.freq-orange .freq-dot { background: var(--freq-orange); }
+.freq-legend-item.freq-red .freq-dot { background: var(--freq-red); animation: freqPulse 1.6s infinite; }
+@keyframes freqPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+}
+.freq-note {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+
+/* Level colors (chip/text) */
+.freq-yellow { background: var(--freq-yellow-bg); color: var(--freq-yellow-text); }
+.freq-orange { background: var(--freq-orange-bg); color: var(--freq-orange-text); }
+.freq-red { background: var(--freq-red-bg); color: var(--freq-red-text); }
+.freq-bg-yellow { background: linear-gradient(180deg, #fde047, var(--freq-yellow)); }
+.freq-bg-orange { background: linear-gradient(180deg, #fb923c, var(--freq-orange)); }
+.freq-bg-red { background: linear-gradient(180deg, #ef4444, var(--freq-red)); }
+.freq-bg-none { background: var(--gray-200); }
+
+/* Type summary */
+.type-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.type-stat-card {
+  background: #fff;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-base);
+}
+.type-stat-card:hover { border-color: var(--primary-300); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.type-stat-card.active { border-color: var(--primary-500); background: var(--primary-50); box-shadow: var(--shadow-glow); }
+.type-stat-card.empty { opacity: 0.55; }
+.type-stat-head { display: flex; align-items: center; gap: 6px; }
+.type-stat-icon { font-size: 1.3rem; }
+.type-stat-name { font-weight: 700; color: var(--gray-800); font-size: 0.95rem; }
+.type-stat-total { font-size: 1.6rem; font-weight: 800; color: var(--gray-900); margin-top: 6px; line-height: 1.1; }
+.type-stat-total small { font-size: 0.8rem; font-weight: 500; color: var(--gray-500); }
+.type-stat-sub { font-size: 0.8rem; color: var(--gray-500); }
+.type-stat-levels { display: flex; gap: 4px; margin-top: 8px; }
+.lv-chip {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 0;
+  border-radius: var(--radius-full);
+}
+
+/* Monthly chart */
+.month-chart {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  align-items: end;
+  height: 170px;
+}
+.month-col { display: flex; flex-direction: column; align-items: center; height: 100%; }
+.month-val { font-size: 0.75rem; font-weight: 700; color: var(--gray-700); min-height: 16px; }
+.month-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.month-bar {
+  width: 70%;
+  min-height: 3px;
+  border-radius: 6px 6px 2px 2px;
+  transition: height var(--transition-slow);
+}
+.month-label { font-size: 0.68rem; color: var(--gray-500); margin-top: 4px; white-space: nowrap; }
+
+/* Person frequency cards */
+.person-freq-card {
+  border: 1px solid var(--gray-200);
+  border-left: 5px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #fff;
+  animation: slideUp 0.3s ease both;
+}
+.person-freq-card.border-yellow { border-left-color: var(--freq-yellow); }
+.person-freq-card.border-orange { border-left-color: var(--freq-orange); }
+.person-freq-card.border-red { border-left-color: var(--freq-red); background: linear-gradient(90deg, #fff5f5, #fff 40%); }
+.person-freq-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.person-freq-name { font-weight: 700; font-size: 1.05rem; color: var(--gray-900); }
+.person-freq-meta { font-size: 0.82rem; color: var(--gray-500); margin-top: 2px; }
+.person-freq-total { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.person-freq-total strong { font-size: 1.5rem; color: var(--gray-900); }
+.person-freq-total small { font-size: 0.72rem; color: var(--gray-500); }
+.person-freq-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.freq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.freq-chip b {
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: var(--radius-full);
+  min-width: 24px;
+  text-align: center;
+  padding: 1px 6px;
+}
+.freq-chip.freq-red { box-shadow: 0 0 0 1.5px var(--freq-red) inset; }
+.freq-chip.freq-orange { box-shadow: 0 0 0 1.5px var(--freq-orange) inset; }
+.freq-chip.freq-yellow { box-shadow: 0 0 0 1.5px var(--freq-yellow) inset; }
+.person-freq-detail {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--gray-200);
+}
+.person-freq-type + .person-freq-type { margin-top: 10px; }
+.person-freq-type-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--gray-800); font-size: 0.92rem; }
+.freq-dot-sm { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.person-freq-type ul { list-style: none; margin: 6px 0 0 16px; padding: 0; }
+.person-freq-type li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  padding: 4px 0;
+  flex-wrap: wrap;
+}
+.timeline-no { font-weight: 700; color: var(--gray-700); min-width: 62px; }
+.timeline-link { color: var(--primary-600); font-weight: 600; cursor: pointer; margin-left: auto; }
+.timeline-link:hover { text-decoration: underline; }
+
+@media (max-width: 420px) {
+  .freq-legend-text small { display: none; }
+  .month-label { font-size: 0.6rem; }
+}
