@@ -55,6 +55,10 @@ CREATE INDEX IF NOT EXISTS idx_requests_disaster_type ON requests(disaster_type)
 CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_requests_request_number ON requests(request_number);
 CREATE INDEX IF NOT EXISTS idx_requests_province ON requests(province);
+-- 📊 Statistics report indexes (v1.1)
+CREATE INDEX IF NOT EXISTS idx_requests_incident_date ON requests(incident_date);
+CREATE INDEX IF NOT EXISTS idx_requests_id_card ON requests(id_card_number);
+CREATE INDEX IF NOT EXISTS idx_requests_person_type_date ON requests(id_card_number, disaster_type, incident_date);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE requests ENABLE ROW LEVEL SECURITY;

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { getDemoRequests, subscribeDemoRequests, INITIAL_DEMO_REQUESTS } from '../../lib/demoStore';
 import { useToast } from '../../components/Toast';
@@ -72,6 +72,8 @@ export default function StatisticsPage({ onNavigate, officerUser }) {
   const [levelFilter, setLevelFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPerson, setExpandedPerson] = useState(null);
+  const toastRef = useRef(showToast);
+  toastRef.current = showToast;
 
   const loadRequests = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -80,36 +82,57 @@ export default function StatisticsPage({ onNavigate, officerUser }) {
     }
     setIsRefreshing(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const { data, error } = await supabase
-        .from('requests')
-        .select('id, request_number, full_name, id_card_number, phone, disaster_type, incident_date, village, subdistrict, district, province, status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(2000)
-        .abortSignal(controller.signal);
-      clearTimeout(timeoutId);
-      if (!error && data && data.length > 0) setRequests(data);
-      else setRequests(getDemoRequests());
+      // ดึงเฉพาะปีที่เลือก (ใช้ index idx_requests_incident_date)
+      // แบ่งหน้าละ 1,000 แถว เพราะ Supabase จำกัดสูงสุด 1,000 แถวต่อ request
+      const PAGE = 1000;
+      const MAX_ROWS = 50000;
+      const y = Number(selectedYear);
+      let all = [];
+      for (let from = 0; from < MAX_ROWS; from += PAGE) {
+        const { data, error } = await supabase
+          .from('requests')
+          .select('id, request_number, full_name, id_card_number, phone, disaster_type, incident_date, village, subdistrict, district, province, status, created_at')
+          .gte('incident_date', `${y}-01-01`)
+          .lte('incident_date', `${y}-12-31`)
+          .order('incident_date', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE - 1)
+          .abortSignal(controller.signal);
+        if (error) throw error;
+        all = all.concat(data || []);
+        if (!data || data.length < PAGE) break;
+      }
+      setRequests(all);
     } catch (e) {
       setRequests(getDemoRequests());
+      toastRef.current('โหลดข้อมูลไม่สำเร็จ', 'แสดงข้อมูลจากแคชในเครื่องแทน', 'error');
     } finally {
+      clearTimeout(timeoutId);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [selectedYear]);
 
   useEffect(() => {
     loadRequests();
-    const unsubscribe = subscribeDemoRequests((updated) => setRequests(updated));
-    return () => unsubscribe();
   }, [loadRequests]);
 
-  // ปีที่มีข้อมูล
+  useEffect(() => {
+    // Demo mode: อัปเดตทันทีเมื่อมีคำร้องใหม่ในเครื่อง
+    if (isSupabaseConfigured) return;
+    const unsubscribe = subscribeDemoRequests((updated) => setRequests(updated));
+    return () => unsubscribe();
+  }, []);
+
+  // ปีให้เลือก: ย้อนหลัง 5 ปี + ปีที่พบในข้อมูล
   const availableYears = useMemo(() => {
-    const years = new Set([new Date().getFullYear()]);
+    const now = new Date().getFullYear();
+    const years = new Set(Array.from({ length: 6 }, (_, i) => now - i));
+    years.add(Number(selectedYear));
     requests.forEach((r) => years.add(getRequestDate(r).getFullYear()));
     return [...years].filter((y) => !isNaN(y)).sort((a, b) => b - a);
-  }, [requests]);
+  }, [requests, selectedYear]);
 
   // คำร้องในปีที่เลือก
   const yearRequests = useMemo(
