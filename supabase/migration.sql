@@ -133,6 +133,18 @@ COMMENT ON COLUMN requests.gps_lng IS 'Longitude พิกัด GPS ของ�
 CREATE INDEX IF NOT EXISTS idx_requests_gps ON requests(gps_lat, gps_lng) WHERE gps_lat IS NOT NULL;
 
 -- =====================================================
+-- 📑 Migration v1.2: แบบคำร้องตนเอง/ผู้แทน & ลายเซ็นเจ้าหน้าที่
+-- =====================================================
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS request_type TEXT DEFAULT 'self';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS representative_name TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS representative_phone TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS representative_relation TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS age INTEGER;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS assistance_category TEXT DEFAULT 'ด้านสาธารณภัย';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS officer_signature_url TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS officer_position TEXT DEFAULT 'เจ้าหน้าที่ผู้รับคำขอ';
+
+-- =====================================================
 -- Sample data for testing (optional - remove in production)
 -- =====================================================
 INSERT INTO requests (request_number, disaster_type, incident_date, urgency_level, estimated_damage, full_name, id_card_number, phone, household_members, address, village, subdistrict, district, province, gps_lat, gps_lng, assistance_requested, officer_notes, status, created_at) VALUES

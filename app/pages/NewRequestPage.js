@@ -5,6 +5,7 @@ import { useToast } from '../../components/Toast';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { saveDemoRequest } from '../../lib/demoStore';
 import thaiAddressData from '../data/thai_address_tree.json';
+import OfficialPrintModal from '../../components/OfficialPrintModal';
 
 // Pre-sort provinces once at module level so form typing never re-sorts 77 strings
 const ALL_PROVINCES = Object.keys(thaiAddressData).sort((a, b) => a.localeCompare(b, 'th'));
@@ -21,6 +22,13 @@ const DISASTER_TYPES = [
   '⚠️ อื่นๆ',
 ];
 
+const ASSISTANCE_CATEGORIES = [
+  'ด้านสาธารณภัย',
+  'ด้านการส่งเสริมและพัฒนาคุณภาพชีวิต',
+  'ด้านการป้องกันและควบคุมโรคติดต่อ',
+  'ด้านอื่น ๆ',
+];
+
 const URGENCY_LEVELS = [
   { value: 'urgent', label: 'เร่งด่วน', color: 'var(--danger-500)' },
   { value: 'high', label: 'สูง', color: 'var(--warning-500)' },
@@ -29,6 +37,12 @@ const URGENCY_LEVELS = [
 ];
 
 const INITIAL_FORM = {
+  request_type: 'self', // 'self' (กรณีร้องขอด้วยตนเอง) | 'representative' (กรณีร้องขอโดยผู้แทน)
+  representative_name: '',
+  representative_phone: '',
+  representative_relation: '',
+  age: '',
+  assistance_category: 'ด้านสาธารณภัย',
   disaster_type: '🌊 อุทกภัย',
   incident_date: new Date().toISOString().split('T')[0],
   urgency_level: 'urgent',
@@ -39,9 +53,9 @@ const INITIAL_FORM = {
   household_members: 1,
   address: '',
   village: '',
-  subdistrict: '',
-  district: '',
-  province: '',
+  subdistrict: 'โนนสัง',
+  district: 'โนนสัง',
+  province: 'หนองบัวลำภู',
   gps_lat: null,
   gps_lng: null,
   assistance_requested: '',
@@ -57,10 +71,20 @@ export default function NewRequestPage({ onNavigate }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedNumber, setSubmittedNumber] = useState('');
+  const [showLivePreview, setShowLivePreview] = useState(false);
   const fileInputRef = useRef(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
   const [mapKey, setMapKey] = useState(0); // force re-render map iframe
+
+  // Live preview request data from form state at any stage
+  const liveRequestData = useMemo(() => ({
+    request_number: submittedNumber || 'DMS-ร่างคำร้อง',
+    ...form,
+    signature_url: signature,
+    attachments: files.map(f => ({ name: f.name, url: '#', size: f.size })),
+    created_at: new Date().toISOString(),
+  }), [form, signature, files, submittedNumber]);
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -106,6 +130,9 @@ export default function NewRequestPage({ onNavigate }) {
 
   const validate = () => {
     const newErrors = {};
+    if (form.request_type === 'representative' && !form.representative_name?.trim()) {
+      newErrors.representative_name = 'กรุณากรอกชื่อ-นามสกุลผู้แทนผู้ยื่นคำร้อง';
+    }
     if (!form.disaster_type) newErrors.disaster_type = 'กรุณาเลือกประเภทสาธารณภัย';
     if (!form.incident_date) newErrors.incident_date = 'กรุณาเลือกวันที่เกิดเหตุ';
     if (!form.urgency_level) newErrors.urgency_level = 'กรุณาเลือกระดับความเร่งด่วน';
@@ -127,9 +154,9 @@ export default function NewRequestPage({ onNavigate }) {
 
   const generateRequestNumber = () => {
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-    const random = Math.floor(1000 + Math.random() * 9000);
-    return `REQ-${dateStr}-${random}`;
+    const thaiYear = now.getFullYear() + (now.getFullYear() < 2400 ? 543 : 0);
+    const random = Math.floor(100000 + Math.random() * 900000);
+    return `DMS-${thaiYear}-${random}`;
   };
 
   const handleSubmit = async () => {
@@ -211,57 +238,219 @@ export default function NewRequestPage({ onNavigate }) {
 
   // Success screen
   if (submitted) {
+    const successDocData = {
+      ...liveRequestData,
+      request_number: submittedNumber || liveRequestData.request_number,
+    };
+
     return (
-      <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <div style={{
-          width: 80, height: 80, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--success-500), #16a34a)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 24px',
-          animation: 'slideUp 0.5s ease',
-          boxShadow: '0 8px 30px rgba(34, 197, 94, 0.4)',
-        }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-            <path d="M22 4L12 14.01l-3-3" />
-          </svg>
-        </div>
-        <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: 8 }}>
-          บันทึกคำร้องเรียบร้อย!
-        </h2>
-        <p style={{ color: 'var(--gray-500)', fontSize: '0.88rem', marginBottom: 24 }}>
-          คำร้องของคุณถูกบันทึกและส่งเข้าสู่กระบวนการตรวจสอบแล้ว
-        </p>
-        <div style={{
-          background: 'var(--primary-50)', borderRadius: 'var(--radius-md)',
-          padding: '16px 24px', marginBottom: 32, border: '2px solid var(--primary-200)',
-        }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginBottom: 4 }}>เลขที่คำร้อง</div>
-          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary-700)', letterSpacing: '1px' }}>
-            {submittedNumber}
+      <>
+        <div style={{ textAlign: 'center', padding: '60px 24px' }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--success-500), #16a34a)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 24px',
+            animation: 'slideUp 0.5s ease',
+            boxShadow: '0 8px 30px rgba(34, 197, 94, 0.4)',
+          }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+              <path d="M22 4L12 14.01l-3-3" />
+            </svg>
           </div>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: 8 }}>
+            บันทึกคำร้องเรียบร้อย!
+          </h2>
+          <p style={{ color: 'var(--gray-500)', fontSize: '0.88rem', marginBottom: 24 }}>
+            คำร้องของคุณถูกบันทึกและส่งเข้าสู่กระบวนการตรวจสอบแล้ว
+          </p>
+          <div style={{
+            background: 'var(--primary-50)', borderRadius: 'var(--radius-md)',
+            padding: '16px 24px', marginBottom: 32, border: '2px solid var(--primary-200)',
+          }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginBottom: 4 }}>เลขที่คำร้อง</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary-700)', letterSpacing: '1px' }}>
+              {submittedNumber}
+            </div>
+          </div>
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 700 }}
+            onClick={() => setShowLivePreview(true)}
+            id="success-print-btn"
+          >
+            🖨️ พิมพ์แบบคำร้อง / ดาวน์โหลด PDF ทันที
+          </button>
+          <button
+            className="btn btn-warning btn-block"
+            style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 700 }}
+            onClick={() => onNavigate('request-detail', submittedNumber)}
+            id="view-submitted-detail-btn"
+          >
+            📄 ดูรายละเอียดในระบบ
+          </button>
+          <button className="btn btn-outline btn-block" onClick={() => onNavigate('registry')} id="go-to-registry-btn">
+            📋 ดูรายการคำร้องทั้งหมด
+          </button>
+          <button className="btn btn-ghost btn-block mt-2" onClick={() => onNavigate('home')} id="go-home-btn">
+            🏠 กลับหน้าแรก
+          </button>
         </div>
-        <button className="btn btn-primary btn-block" onClick={() => onNavigate('registry')} id="go-to-registry-btn">
-          ดูรายการคำร้อง
-        </button>
-        <button className="btn btn-outline btn-block mt-4" onClick={() => onNavigate('home')} id="go-home-btn">
-          กลับหน้าแรก
-        </button>
-      </div>
+
+        {/* Official Print Modal on Success Screen */}
+        {showLivePreview && (
+          <OfficialPrintModal
+            request={successDocData}
+            onClose={() => setShowLivePreview(false)}
+          />
+        )}
+      </>
     );
   }
 
   return (
     <>
       {/* Page Header */}
-      <div className="page-header">
-        <h1>กรอกแบบฟอร์มช่วยเหลือ</h1>
-        <p>กรอกข้อมูลให้ครบถ้วนเพื่อสร้างเลขที่คำร้องและส่งเข้าสู่กระบวนการตรวจสอบ</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1>กรอกแบบฟอร์มขอรับความช่วยเหลือ</h1>
+          <p>แบบลงทะเบียนขอรับความช่วยเหลือของประชาชน เทศบาลตำบลโนนสัง</p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={() => setShowLivePreview(true)}
+          id="header-live-preview-btn"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 18px',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'white',
+            borderColor: 'var(--primary-400)',
+            color: 'var(--primary-700)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          }}
+        >
+          👁️ ดูตัวอย่างแบบฟอร์ม PDF / พิมพ์
+        </button>
       </div>
 
       <button className="back-btn" onClick={() => onNavigate('registry')} id="back-to-registry-btn">
         ← กลับทะเบียน
       </button>
+
+      {/* Section 0: Request Type */}
+      <div className="card" style={{ animationDelay: '0.05s' }}>
+        <div className="card-title">
+          <span className="section-number">0</span>
+          ประเภทการยื่นคำร้อง
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 8 }}>
+          <label className="form-label">
+            เลือกรูปแบบการยื่นคำร้อง <span className="required">*</span>
+          </label>
+          <div className="request-type-grid">
+            <div
+              className={`request-type-card ${form.request_type === 'self' ? 'selected' : ''}`}
+              onClick={() => updateField('request_type', 'self')}
+              id="request-type-self-btn"
+            >
+              <div className="request-type-icon">👤</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--gray-900)' }}>
+                  1. ยื่นด้วยตนเอง
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
+                  (กรณีร้องขอด้วยตนเอง)
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={`request-type-card ${form.request_type === 'representative' ? 'selected' : ''}`}
+              onClick={() => updateField('request_type', 'representative')}
+              id="request-type-representative-btn"
+            >
+              <div className="request-type-icon">👥</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--gray-900)' }}>
+                  2. ผู้แทนยื่น
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
+                  (กรณีร้องขอโดยผู้แทน)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Representative Fields if selected */}
+        {form.request_type === 'representative' && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: '16px 18px',
+              background: '#fff7ed',
+              border: '1.5px solid #fed7aa',
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--primary-800)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>👥</span> ข้อมูลผู้แทนผู้ยื่นคำร้อง
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="representative_name">
+                ชื่อ-นามสกุล ผู้แทนผู้ยื่นคำร้อง <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                className={`form-input ${errors.representative_name ? 'form-input-error' : ''}`}
+                id="representative_name"
+                value={form.representative_name}
+                onChange={(e) => updateField('representative_name', e.target.value)}
+                placeholder="เช่น น้อยหน่า ต๊ะติ๊งโหน่ง"
+              />
+              {errors.representative_name && <div className="form-error-text">{errors.representative_name}</div>}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="representative_relation">
+                  ความสัมพันธ์กับผู้ประสบภัย
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  id="representative_relation"
+                  value={form.representative_relation}
+                  onChange={(e) => updateField('representative_relation', e.target.value)}
+                  placeholder="เช่น บุตร, คู่สมรส, ญาติ, ผู้ดูแล"
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="representative_phone">
+                  เบอร์โทรศัพท์ผู้แทน
+                </label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  id="representative_phone"
+                  value={form.representative_phone}
+                  onChange={(e) => updateField('representative_phone', e.target.value)}
+                  placeholder="08x-xxx-xxxx"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Section 1: Incident Info */}
       <div className="card" style={{ animationDelay: '0.1s' }}>
@@ -344,19 +533,38 @@ export default function NewRequestPage({ onNavigate }) {
           ข้อมูลผู้ประสบภัยและที่อยู่
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="full_name">
-            ชื่อผู้ยื่นคำร้อง <span className="required">*</span>
-          </label>
-          <input
-            type="text"
-            className={`form-input ${errors.full_name ? 'form-input-error' : ''}`}
-            id="full_name"
-            value={form.full_name}
-            onChange={(e) => updateField('full_name', e.target.value)}
-            placeholder="ชื่อ - นามสกุล"
-          />
-          {errors.full_name && <div className="form-error-text">{errors.full_name}</div>}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="full_name">
+              ชื่อผู้ยื่นคำร้อง / ผู้ประสบภัย <span className="required">*</span>
+            </label>
+            <input
+              type="text"
+              className={`form-input ${errors.full_name ? 'form-input-error' : ''}`}
+              id="full_name"
+              value={form.full_name}
+              onChange={(e) => updateField('full_name', e.target.value)}
+              placeholder="นาย / นาง / นางสาว... นามสกุล..."
+            />
+            {errors.full_name && <div className="form-error-text">{errors.full_name}</div>}
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="age">
+              อายุ (ปี)
+            </label>
+            <input
+              type="number"
+              className="form-input"
+              id="age"
+              value={form.age}
+              onChange={(e) => updateField('age', e.target.value)}
+              placeholder="เช่น 48"
+              min="1"
+              max="130"
+              inputMode="numeric"
+            />
+          </div>
         </div>
 
         <div className="form-group">
@@ -684,15 +892,31 @@ export default function NewRequestPage({ onNavigate }) {
         </div>
 
         <div className="form-group">
+          <label className="form-label" htmlFor="assistance_category">
+            หมวดหมู่การขอรับความช่วยเหลือ (ตามแบบฟอร์มราชการ) <span className="required">*</span>
+          </label>
+          <select
+            className="form-select"
+            id="assistance_category"
+            value={form.assistance_category}
+            onChange={(e) => updateField('assistance_category', e.target.value)}
+          >
+            {ASSISTANCE_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
           <label className="form-label" htmlFor="assistance_requested">
-            สิ่งของ / การช่วยเหลือที่ร้องขอ <span className="required">*</span>
+            สิ่งของ / การช่วยเหลือที่ร้องขอ (ระบุความต้องการ) <span className="required">*</span>
           </label>
           <textarea
             className={`form-textarea ${errors.assistance_requested ? 'form-input-error' : ''}`}
             id="assistance_requested"
             value={form.assistance_requested}
             onChange={(e) => updateField('assistance_requested', e.target.value)}
-            placeholder="เช่น ถุงยังชีพ น้ำดื่ม วัสดุซ่อมแซมบ้าน เงินช่วยเหลือ"
+            placeholder="เช่น วัสดุซ่อมแซมหลังคา, สังกะสี, ไม้อัด, ถุงยังชีพ, น้ำดื่ม"
             rows={4}
           />
           {errors.assistance_requested && <div className="form-error-text">{errors.assistance_requested}</div>}
@@ -766,47 +990,92 @@ export default function NewRequestPage({ onNavigate }) {
           ลงลายมือชื่อ
         </div>
 
-        <SignaturePad onSignatureChange={setSignature} />
+        <SignaturePad
+          onSignatureChange={setSignature}
+          label={
+            form.request_type === 'representative'
+              ? '✍️ ลงลายมือชื่อผู้แทนผู้ยื่นคำร้อง (เซ็นด้วยนิ้วมือหรือปากกา)'
+              : '✍️ ลงลายมือชื่อผู้ยื่นคำร้อง (เซ็นด้วยนิ้วมือหรือปากกา)'
+          }
+          placeholder="✍️ ใช้นิ้วมือหรือเมาส์ ลากเซ็นชื่อตรงนี้"
+        />
         {errors.signature && <div className="form-error-text" style={{ marginTop: -12 }}>{errors.signature}</div>}
+
+        <div style={{
+          marginTop: 14,
+          padding: '12px 16px',
+          background: 'var(--gray-50)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: '0.92rem',
+          color: 'var(--gray-700)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          border: '1px solid var(--gray-200)',
+        }}>
+          <span style={{ color: 'var(--success-600)', fontSize: '1.2rem', fontWeight: 800 }}>✓</span>
+          <span>ข้าพเจ้าขอรับรองว่าข้อความดังกล่าวข้างต้นเป็นจริงทุกประการ</span>
+        </div>
       </div>
 
       {/* Submit Buttons */}
       <div className="action-bar-sticky">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 640, margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 700, padding: '12px' }}
+              onClick={() => setShowLivePreview(true)}
+              id="sticky-preview-pdf-btn"
+            >
+              👁️ ดูตัวอย่าง PDF / พิมพ์
+            </button>
+            <button
+              className="btn btn-primary btn-lg"
+              style={{ flex: 1.5 }}
+              onClick={handleSubmit}
+              disabled={submitting}
+              id="submit-request-btn"
+            >
+              {submitting ? (
+                <>
+                  <span className="spinner" style={{ borderTopColor: 'white' }}></span>
+                  กำลังบันทึก...
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                    <path d="M17 21v-8H7v8M7 3v5h8" />
+                  </svg>
+                  บันทึกและส่งคำร้อง
+                </>
+              )}
+            </button>
+          </div>
           <button
-            className="btn btn-primary btn-block btn-lg"
-            onClick={handleSubmit}
-            disabled={submitting}
-            id="submit-request-btn"
-          >
-            {submitting ? (
-              <>
-                <span className="spinner" style={{ borderTopColor: 'white' }}></span>
-                กำลังบันทึก...
-              </>
-            ) : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-                  <path d="M17 21v-8H7v8M7 3v5h8" />
-                </svg>
-                บันทึกและส่งคำร้อง
-              </>
-            )}
-          </button>
-          <button
-            className="btn btn-outline btn-block"
+            className="btn btn-ghost btn-block"
             onClick={() => onNavigate('registry')}
             disabled={submitting}
             id="cancel-request-btn"
+            style={{ fontSize: '0.9rem', color: 'var(--gray-500)', padding: '6px' }}
           >
             ยกเลิก
           </button>
         </div>
       </div>
 
+      {/* Official Print & PDF Live Preview Modal */}
+      {showLivePreview && (
+        <OfficialPrintModal
+          request={liveRequestData}
+          onClose={() => setShowLivePreview(false)}
+        />
+      )}
+
       {/* Spacer for sticky bar */}
-      <div style={{ height: 100 }}></div>
+      <div style={{ height: 110 }}></div>
     </>
   );
 }

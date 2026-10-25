@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { getDemoRequests, subscribeDemoRequests, deleteDemoRequest, INITIAL_DEMO_REQUESTS } from '../../lib/demoStore';
 import { useToast } from '../../components/Toast';
+import OfficialPrintModal from '../../components/OfficialPrintModal';
 
 const PAGE_SIZE = 20;
 
@@ -17,6 +18,7 @@ export default function RegistryPage({ onNavigate, officerUser }) {
   const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [printTarget, setPrintTarget] = useState(null);
 
   const isSuperadmin = officerUser?.role === 'superadmin';
 
@@ -53,10 +55,10 @@ export default function RegistryPage({ onNavigate, officerUser }) {
     const timeoutId = setTimeout(() => controller.abort(), 3500);
 
     try {
-      // Query only required columns - skipping heavy signature_url and attachments blobs
+      // Query required columns including official form & signature data
       const { data, error } = await supabase
         .from('requests')
-        .select('id, request_number, full_name, id_card_number, phone, household_members, disaster_type, incident_date, urgency_level, estimated_damage, address, village, subdistrict, district, province, assistance_requested, officer_notes, status, created_at')
+        .select('id, request_number, full_name, id_card_number, phone, household_members, disaster_type, incident_date, urgency_level, estimated_damage, address, village, subdistrict, district, province, assistance_requested, officer_notes, status, created_at, request_type, representative_name, representative_phone, representative_relation, age, assistance_category, officer_signature_url, officer_position, reviewed_by, signature_url, attachments')
         .order('created_at', { ascending: false })
         .limit(200)
         .abortSignal(controller.signal);
@@ -100,6 +102,7 @@ export default function RegistryPage({ onNavigate, officerUser }) {
         (r) =>
           r.request_number?.toLowerCase().includes(q) ||
           r.full_name?.toLowerCase().includes(q) ||
+          r.representative_name?.toLowerCase().includes(q) ||
           r.district?.toLowerCase().includes(q) ||
           r.province?.toLowerCase().includes(q)
       );
@@ -424,8 +427,15 @@ export default function RegistryPage({ onNavigate, officerUser }) {
                   {getStatusBadge(req.status)}
                 </div>
                 <div className="request-card-body">
-                  <h3>{req.full_name}</h3>
-                  <div className="request-card-meta">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0 }}>{req.full_name}</h3>
+                    {req.request_type === 'representative' && (
+                      <span style={{ fontSize: '0.75rem', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '2px 8px', borderRadius: 999, fontWeight: 600 }}>
+                        👥 ผู้แทน: {req.representative_name || '-'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="request-card-meta" style={{ marginTop: 6 }}>
                     <span>{req.disaster_type}</span>
                     <span>📅 {new Date(req.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   </div>
@@ -438,7 +448,33 @@ export default function RegistryPage({ onNavigate, officerUser }) {
                   <span style={{ fontSize: '1rem', color: 'var(--gray-400)' }}>
                     {req.estimated_damage ? `฿${Number(req.estimated_damage).toLocaleString()}` : '-'}
                   </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const fullData = getDemoRequests().find((r) => r.id === req.id) || req;
+                        setPrintTarget(fullData);
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.85rem',
+                        background: 'rgba(234, 88, 12, 0.1)',
+                        border: '1px solid rgba(234, 88, 12, 0.35)',
+                        color: 'var(--primary-700)',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                      title="ดูตัวอย่างแบบฟอร์ม / สั่งพิมพ์ PDF"
+                      id={`print-req-btn-${req.id}`}
+                    >
+                      🖨️ PDF / พิมพ์
+                    </button>
                     {isSuperadmin && (
                       <button
                         type="button"
@@ -459,10 +495,10 @@ export default function RegistryPage({ onNavigate, officerUser }) {
                         title="ลบคำร้อง (Superadmin)"
                         id={`delete-req-btn-${req.id}`}
                       >
-                        🗑️ ลบคำร้อง
+                        🗑️ ลบ
                       </button>
                     )}
-                    <span style={{ fontSize: '1rem', color: 'var(--primary-600)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.95rem', color: 'var(--primary-600)', fontWeight: 600 }}>
                       ดูรายละเอียด →
                     </span>
                   </div>
@@ -529,6 +565,14 @@ export default function RegistryPage({ onNavigate, officerUser }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Official Print Modal */}
+      {printTarget && (
+        <OfficialPrintModal
+          request={printTarget}
+          onClose={() => setPrintTarget(null)}
+        />
       )}
 
       <div style={{ height: 40 }}></div>

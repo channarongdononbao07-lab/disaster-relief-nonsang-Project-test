@@ -1,4 +1,4 @@
-import { Prompt } from "next/font/google";
+import { Prompt, Sarabun } from "next/font/google";
 import "./globals.css";
 
 const prompt = Prompt({
@@ -6,6 +6,13 @@ const prompt = Prompt({
   weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
   variable: "--font-prompt",
+});
+
+const sarabun = Sarabun({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-sarabun",
 });
 
 export const viewport = {
@@ -23,7 +30,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="th" className={prompt.variable}>
+    <html lang="th" className={`${prompt.variable} ${sarabun.variable}`}>
       <head>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>" />
       </head>
