@@ -9,8 +9,8 @@ const PAGE_SIZE = 20;
 
 export default function RegistryPage({ onNavigate, officerUser }) {
   const { showToast } = useToast();
-  // Safe initial state matching SSR perfectly
-  const [requests, setRequests] = useState(() => INITIAL_DEMO_REQUESTS);
+  // Instant initial state from local cache
+  const [requests, setRequests] = useState(() => getDemoRequests());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');

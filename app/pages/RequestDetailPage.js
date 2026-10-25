@@ -54,6 +54,8 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
   };
 
   const loadRequest = async () => {
+    if (!requestId) return;
+
     if (!isSupabaseConfigured) {
       const demoItem = getDemoRequestById(requestId);
       if (demoItem) setRequest(demoItem);
@@ -65,12 +67,14 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
     const timeoutId = setTimeout(() => controller.abort(), 3500);
 
     try {
-      const { data, error } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('id', requestId)
-        .single()
-        .abortSignal(controller.signal);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId);
+      let query = supabase.from('requests').select('*');
+      if (isUUID) {
+        query = query.eq('id', requestId);
+      } else {
+        query = query.eq('request_number', requestId);
+      }
+      const { data, error } = await query.single().abortSignal(controller.signal);
 
       clearTimeout(timeoutId);
 
@@ -126,36 +130,60 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
       }
 
       if (officerNotes) {
-        updateData.review_notes = officerNotes;
+        updateData.officer_notes = officerNotes;
       }
 
       if (officerSignMode === 'review') {
         updateData.status = 'reviewing';
-        updateData.reviewed_at = now;
       } else if (officerSignMode === 'approve') {
         updateData.status = 'approved';
-        updateData.reviewed_at = now;
         updateData.approved_at = now;
       }
 
       if (isSupabaseConfigured) {
         try {
-          const { error } = await supabase
-            .from('requests')
-            .update(updateData)
-            .eq('id', requestId);
-          if (error) console.warn('Supabase update warning:', error);
+          const targetId = request?.id || requestId;
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId);
+
+          let query = supabase.from('requests').update(updateData);
+          if (isUUID) {
+            query = query.eq('id', targetId);
+          } else {
+            query = query.eq('request_number', request?.request_number || requestId);
+          }
+
+          const { error } = await query;
+          if (error) {
+            console.warn('Supabase full update warning, retrying with core columns:', error);
+            const coreUpdate = {
+              status: updateData.status,
+              reviewed_by: updateData.reviewed_by,
+              approved_at: updateData.approved_at || null,
+              updated_at: updateData.updated_at,
+            };
+            if (updateData.officer_notes) coreUpdate.officer_notes = updateData.officer_notes;
+
+            if (isUUID) {
+              await supabase.from('requests').update(coreUpdate).eq('id', targetId);
+            } else {
+              await supabase.from('requests').update(coreUpdate).eq('request_number', request?.request_number || requestId);
+            }
+          }
         } catch (err) {
           console.warn('Supabase update err:', err);
         }
       }
 
-      const updated = updateDemoRequestData(requestId, updateData);
-      if (updated) {
-        setRequest(updated);
-      } else {
-        setRequest((prev) => ({ ...prev, ...updateData }));
+      // Sync demoStore with both possible keys (UUID and request_number)
+      updateDemoRequestData(requestId, updateData);
+      if (request?.id && request.id !== requestId) {
+        updateDemoRequestData(request.id, updateData);
       }
+      if (request?.request_number && request.request_number !== requestId) {
+        updateDemoRequestData(request.request_number, updateData);
+      }
+
+      setRequest((prev) => ({ ...prev, ...updateData }));
 
       const msg =
         officerSignMode === 'approve'
@@ -192,15 +220,27 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
 
       if (isSupabaseConfigured) {
         try {
-          await supabase.from('requests').update(updateData).eq('id', requestId);
+          const targetId = request?.id || requestId;
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId);
+          if (isUUID) {
+            await supabase.from('requests').update(updateData).eq('id', targetId);
+          } else {
+            await supabase.from('requests').update(updateData).eq('request_number', request?.request_number || requestId);
+          }
         } catch (err) {
           console.warn('Supabase error:', err);
         }
       }
 
-      const updated = updateDemoRequestData(requestId, updateData);
-      if (updated) setRequest(updated);
-      else setRequest((prev) => ({ ...prev, ...updateData }));
+      updateDemoRequestData(requestId, updateData);
+      if (request?.id && request.id !== requestId) {
+        updateDemoRequestData(request.id, updateData);
+      }
+      if (request?.request_number && request.request_number !== requestId) {
+        updateDemoRequestData(request.request_number, updateData);
+      }
+
+      setRequest((prev) => ({ ...prev, ...updateData }));
 
       showToast('ไม่อนุมัติคำร้อง', 'บันทึกเหตุผลไม่อนุมัติเรียบร้อยแล้ว', 'success');
       setShowRejectModal(false);
@@ -934,18 +974,39 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
         ) : isAdminOrSuperadmin ? (
           <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 640, margin: '0 auto', flexWrap: 'wrap' }}>
             {request.status === 'pending' && (
-              <button
-                className="btn btn-warning btn-block"
-                onClick={() => handleOpenOfficerSign('review')}
-                disabled={actionLoading}
-                id="review-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                🔍 ตรวจสอบเอกสาร & เซ็นรับเรื่อง
-              </button>
+              <>
+                <button
+                  className="btn btn-success"
+                  style={{ flex: 1.2, minWidth: 150 }}
+                  onClick={() => handleOpenOfficerSign('approve')}
+                  disabled={actionLoading}
+                  id="pending-approve-btn"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                    <path d="M22 4L12 14.01l-3-3" />
+                  </svg>
+                  ✅ อนุมัติ & เซ็นชื่อ
+                </button>
+                <button
+                  className="btn btn-warning"
+                  style={{ flex: 1, minWidth: 140 }}
+                  onClick={() => handleOpenOfficerSign('review')}
+                  disabled={actionLoading}
+                  id="pending-review-btn"
+                >
+                  🔍 ตรวจสอบ/รับเรื่อง
+                </button>
+                <button
+                  className="btn btn-danger"
+                  style={{ flex: 0.8, minWidth: 110 }}
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={actionLoading}
+                  id="pending-reject-btn"
+                >
+                  ❌ ไม่อนุมัติ
+                </button>
+              </>
             )}
 
             {request.status === 'reviewing' && (
@@ -1025,9 +1086,29 @@ export default function RequestDetailPage({ requestId, onNavigate, officerUser }
                 ? '🔍 รับเรื่องตรวจสอบ & ลงลายมือชื่อ'
                 : '✍️ เซ็นชื่อเจ้าหน้าที่ผู้รับคำขอ'}
             </div>
-            <p style={{ fontSize: '0.95rem', color: 'var(--gray-500)', marginBottom: 16 }}>
+            <p style={{ fontSize: '0.95rem', color: 'var(--gray-500)', marginBottom: 14 }}>
               เลขที่คำร้อง <strong>{request.request_number}</strong> • เซ็นออนไลน์ด้วยนิ้วมือ เมาส์ หรือสไตลัส
             </p>
+
+            {/* Mode Selector in Modal */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, background: '#f1f5f9', padding: 4, borderRadius: 'var(--radius-md)' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${officerSignMode === 'approve' ? 'btn-success' : 'btn-ghost'}`}
+                style={{ flex: 1, fontWeight: 700, padding: '7px 12px' }}
+                onClick={() => setOfficerSignMode('approve')}
+              >
+                ✅ อนุมัติคำร้อง
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${officerSignMode === 'review' ? 'btn-warning' : 'btn-ghost'}`}
+                style={{ flex: 1, fontWeight: 700, padding: '7px 12px' }}
+                onClick={() => setOfficerSignMode('review')}
+              >
+                🔍 รับเรื่องตรวจสอบ
+              </button>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <div className="form-group" style={{ margin: 0 }}>
